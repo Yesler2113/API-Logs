@@ -7,14 +7,19 @@ namespace LOGIN.LogsCouchDBServices
 {
     public class CouchDBLogger
     {
-        private readonly string _couchDbUrl = "http://158.23.169.201:5984/logs";
+        private readonly string _couchDbUrl = "";
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly string _username = "admin";  
-        private readonly string _password = "00227";  
+        
+        private readonly string _username = "";  
+        private readonly string _password = "";  
 
-        public CouchDBLogger(IHttpContextAccessor httpContextAccessor)
+        public CouchDBLogger(IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
         {
             _httpContextAccessor = httpContextAccessor;
+            _couchDbUrl = configuration["CouchDbConnection:Url"];
+            _username = configuration["CouchDbConnection:Username"];
+            _password = configuration["CouchDbConnection:Password"];
+
         }
 
         public async Task LogAsync(string action, string description, string data)
