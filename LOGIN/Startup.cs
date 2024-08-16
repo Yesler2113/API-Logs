@@ -95,7 +95,6 @@ namespace LOGIN
                     builder.AllowAnyOrigin()
                            .AllowAnyHeader()
                            .AllowAnyMethod()
-                           .AllowCredentials()
                            .WithExposedHeaders("Content-Disposition");
                 });
             });
