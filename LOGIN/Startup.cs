@@ -113,16 +113,14 @@ namespace LOGIN
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
 
-            if (env.IsDevelopment())
-            {
+           
                 app.UseSwagger();
                 app.UseSwaggerUI();
-            }
-            else
-            {
+            
+            
                 app.UseExceptionHandler("/error");
                 app.UseHsts();
-            }
+            
 
             app.UseHttpsRedirection();
 
@@ -143,20 +141,6 @@ namespace LOGIN
                 endpoints.MapControllers();
             });
 
-            // Ejecutar el log de prueba en segundo plano
-            //Task.Run(async () =>
-            //{
-            //    try
-            //    {
-            //        var someService = app.ApplicationServices.GetService<SomeService>();
-            //        await someService.RunTestLog();
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        var logger = app.ApplicationServices.GetService<ILogger<Startup>>();
-            //        logger.LogError(ex, "Error al ejecutar el log de prueba.");
-            //    }
-            //});
         }
     }
 }
