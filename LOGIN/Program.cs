@@ -19,11 +19,11 @@ startup.Configure(app, app.Environment);
 
 await InitializeDatabaseAsync(app);
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+//if (app.Environment.IsDevelopment())
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
 
 app.UseHttpsRedirection();
 app.UseAuthentication(); // Asegúrate de usar la autenticación antes de la autorización

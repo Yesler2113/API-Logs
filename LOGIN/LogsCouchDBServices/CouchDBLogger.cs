@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace LOGIN.LogsCouchDBServices
 {
+ 
     public class CouchDBLogger
     {
         private readonly string _couchDbUrl = "";

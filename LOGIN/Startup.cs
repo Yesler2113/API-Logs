@@ -92,11 +92,10 @@ namespace LOGIN
             {
                 options.AddPolicy(_corsPolicy, builder =>
                 {
-                    builder.WithOrigins(Configuration["FrontendURL"])
+                    builder.AllowAnyOrigin()
                            .AllowAnyHeader()
                            .AllowAnyMethod()
                            .AllowCredentials()
-                           .SetIsOriginAllowedToAllowWildcardSubdomains()
                            .WithExposedHeaders("Content-Disposition");
                 });
             });
