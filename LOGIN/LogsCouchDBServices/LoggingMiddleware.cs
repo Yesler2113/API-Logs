@@ -20,99 +20,102 @@ namespace LOGIN.LogsCouchDBServices
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var request = context.Request;
-
-            // Obtener el ID del usuario si está autenticado, de lo contrario usar "Usuario Desconocido"
-            var userId = context.User.Identity.IsAuthenticated
-                         ? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                         : "Usuario Desconocido";
-
-            var timestamp = DateTime.UtcNow;
-
-            string requestBodyContent = string.Empty;
-            string requestInfo = $"Method: {request.Method}, Path: {request.Path}, QueryString: {request.QueryString}";
-
-            // Solo leer el cuerpo de la solicitud si es un POST
-            if (request.Method == HttpMethods.Post)
-            {
-                requestBodyContent = await ReadRequestBody(request);
-                requestInfo += $", Body: {requestBodyContent}";
-            }
-
             var originalBodyStream = context.Response.Body;
             using var responseBody = new MemoryStream();
             context.Response.Body = responseBody;
 
             try
             {
-                await _next(context);
+                await _next(context);  // Procesar la solicitud
 
-                string responseBodyContent = await ReadResponseBody(context.Response);
-                string responseInfo;
+                // Lee el contenido de la respuesta
+                responseBody.Seek(0, SeekOrigin.Begin);
+                string responseBodyContent = await new StreamReader(responseBody).ReadToEndAsync();
 
-                if (request.Method == HttpMethods.Get)
+                if (context.Request.Method == HttpMethods.Get)
                 {
+                    // Contar la cantidad de registros en la respuesta
                     int dataCount = CountItemsInResponse(responseBodyContent);
-                    responseInfo = $"StatusCode: {context.Response.StatusCode}, DataCount: {dataCount}, Body: Informacion Obtenida";
+
+                    // Log solo la cantidad de registros accedidos
+                    await LogRequestAndResponse(context, dataCount);
                 }
                 else
                 {
-                    responseInfo = $"StatusCode: {context.Response.StatusCode}, Body: {responseBodyContent}";
+                    // Log completo para otros métodos (POST, PUT, DELETE, etc.)
+                    await LogRequestAndResponse(context, responseBodyContent);
                 }
 
-                var status = context.Response.StatusCode >= 200 && context.Response.StatusCode < 400 ? "success" : "error";
-                var description = status;
-
-                await _logger.LogAsync("Request", description, JsonConvert.SerializeObject(new
-                {
-                    UserId = userId,
-                    Timestamp = timestamp,
-                    Request = requestInfo,
-                    Response = responseInfo,
-                    Status = status
-                }));
-
-                // Restablecer la posición del cuerpo de la respuesta para que pueda ser leída por el cliente
+                // Copia la respuesta original de nuevo al stream original
                 responseBody.Seek(0, SeekOrigin.Begin);
                 await responseBody.CopyToAsync(originalBodyStream);
             }
             catch (Exception ex)
             {
-                await _logger.LogAsync("Request", "error", JsonConvert.SerializeObject(new
-                {
-                    UserId = userId,
-                    Timestamp = timestamp,
-                    Request = requestInfo,
-                    Error = ex.Message,
-                    Status = "error"
-                }));
+                // Manejo de excepciones y log de error
+                await LogRequestAndResponse(context, null, ex.Message);
 
+                responseBody.Seek(0, SeekOrigin.Begin);
+                await responseBody.CopyToAsync(originalBodyStream);
                 throw;
             }
+        }
+
+        private async Task LogRequestAndResponse(HttpContext context, object logData, string error = null)
+        {
+            var request = context.Request;
+
+            var userId = context.User.Identity.IsAuthenticated
+                ? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                : "Usuario Desconocido";
+
+            var timestamp = DateTime.UtcNow;
+            var requestBodyContent = request.Method == HttpMethods.Post ? await ReadRequestBody(request) : string.Empty;
+            var requestInfo = $"Method: {request.Method}, Path: {request.Path}, QueryString: {request.QueryString}";
+
+            var responseInfo = error != null
+                ? $"Error: {error}"
+                : request.Method == HttpMethods.Get
+                    ? $"DataCount: {logData}"
+                    : $"Body: {logData}";
+
+            var logEntry = new
+            {
+                UserId = userId,
+                Timestamp = timestamp,
+                Request = requestInfo,
+                Response = responseInfo,
+                Status = context.Response.StatusCode >= 200 && context.Response.StatusCode < 400 ? "success" : "error"
+            };
+
+            // Guardar el log en CouchDB
+            await _logger.LogAsync("Request", logEntry.Status, logEntry);
         }
 
         private async Task<string> ReadRequestBody(HttpRequest request)
         {
             request.EnableBuffering();
-            var buffer = new byte[Convert.ToInt32(request.ContentLength)];
+            var buffer = new byte[Convert.ToInt32(request.ContentLength ?? 0)];
             await request.Body.ReadAsync(buffer, 0, buffer.Length);
             request.Body.Seek(0, SeekOrigin.Begin);
             return Encoding.UTF8.GetString(buffer);
         }
 
-        private async Task<string> ReadResponseBody(HttpResponse response)
-        {
-            response.Body.Seek(0, SeekOrigin.Begin);
-            var text = await new StreamReader(response.Body).ReadToEndAsync();
-            response.Body.Seek(0, SeekOrigin.Begin);
-            return text;
-        }
-
-        // Método para contar elementos en la respuesta JSON
         private int CountItemsInResponse(string responseBody)
         {
-            var jsonArray = JsonConvert.DeserializeObject<dynamic>(responseBody) as IEnumerable<dynamic>;
-            return jsonArray?.Count() ?? 0;
+            try
+            {
+                var jsonArray = JsonConvert.DeserializeObject<dynamic>(responseBody) as IEnumerable<dynamic>;
+                return jsonArray?.Count() ?? 0;
+            }
+            catch (JsonReaderException)
+            {
+                // Si la respuesta no es un array JSON, retorna 0
+                return 0;
+            }
         }
+
+
+
     }
 }

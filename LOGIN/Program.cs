@@ -26,7 +26,7 @@ await InitializeDatabaseAsync(app);
 
 
 app.UseHttpsRedirection();
-app.UseAuthentication(); // Asegúrate de usar la autenticación antes de la autorización
+app.UseAuthentication(); 
 app.UseAuthorization();
 app.MapControllers();
 

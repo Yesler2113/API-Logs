@@ -59,6 +59,8 @@ namespace LOGIN
 
             services.AddTransient<SomeService>();
 
+            services.AddScoped<CouchDBLogService>();
+
             // Add Identity
             services.AddIdentity<UserEntity, IdentityRole>(options =>
             {
